@@ -7,23 +7,18 @@ import 'package:sensors/sensors.dart';
 void main() => runApp(MyApp());
 
 class MyApp extends StatelessWidget {
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Jerk Volume',
       theme: ThemeData.dark(),
-      home: VolumePage(title: 'Jerk Volume'),
+      home: VolumePage(),
       debugShowCheckedModeBanner: false,
     );
   }
 }
 
 class VolumePage extends StatefulWidget {
-  VolumePage({Key key, this.title}) : super(key: key);
-
-  final String title;
-
   @override
   VolumePageState createState() => VolumePageState();
 }
@@ -43,38 +38,42 @@ class VolumePageState extends State<VolumePage> {
     initPlatformState();
     updateVolumes();
 
-    accelerometerEvents.listen((AccelerometerEvent event) {
-      if (currentVol == null) return;
+    Future(() {
+      accelerometerEvents.listen((AccelerometerEvent event) {
+        if (currentVol == null) return;
 
-      var y = event.y.abs();
-      bool down = y < 25;
+        var y = maxOfAll([event.x.abs(), event.y.abs(), event.z.abs()]);
+        bool down = y < 25;
 
-      double volumeAcceleration;
-      if (down) {
-        volumeAcceleration = -0.1;
-      } else {
-        volumeAcceleration = (y - 25) / 75;
-      }
+        double volumeAcceleration;
+        if (down) {
+          volumeAcceleration = -0.1;
+        } else {
+          volumeAcceleration = (y - 25) / 75;
+        }
 
-//      double volumeAcceleration = (down ? -1 : 1) * sqrt(y.abs());
-      addingVolume += volumeAcceleration;
-      if (addingVolume < 0) {
-        addingVolume = 0;
-      } else if (addingVolume > maxVol) {
-        addingVolume = maxVol.toDouble();
-      }
+        addingVolume += volumeAcceleration;
+        if (addingVolume < 0) {
+          addingVolume = 0;
+        } else if (addingVolume > maxVol) {
+          addingVolume = maxVol.toDouble();
+        }
 
-      currentVol = max(min(addingVolume.round(), maxVol), 0);
+        currentVol = max(min(addingVolume.round(), maxVol), 0);
 
-//      print(currentVol);
-//      print('$currentVol   [$volumeAcceleration]');
-
-      if (previous != currentVol) {
-        previous = currentVol;
-        setVol(currentVol);
-        updateVolumes();
-      }
+        if (previous != currentVol) {
+          previous = currentVol;
+          setVol(currentVol);
+          updateVolumes();
+        }
+      });
     });
+  }
+
+  double maxOfAll(List<double> nums) {
+    double result = -1;
+    nums.forEach((num) => result = max(num, result));
+    return result;
   }
 
   Future<void> initPlatformState() async {
@@ -82,9 +81,7 @@ class VolumePageState extends State<VolumePage> {
   }
 
   updateVolumes() async {
-    // get Max Volume
     maxVol = await Volume.getMaxVol;
-    // get Current Volume
     currentVol = await Volume.getVol;
   }
 
@@ -97,7 +94,7 @@ class VolumePageState extends State<VolumePage> {
     Size size = MediaQuery.of(context).size;
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.title),
+        title: Text('Jerk Volume'),
       ),
       body: Center(
         child: Column(
@@ -113,13 +110,6 @@ class VolumePageState extends State<VolumePage> {
             ),
           ],
         ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          print('Pressed!');
-          setVol(Random.secure().nextInt(maxVol));
-        },
-        child: Icon(Icons.add),
       ),
     );
   }
